@@ -33,7 +33,8 @@ namespace VyavastaPlugin
             return DiscordCommandPermission.Moderator;
         }
 
-        private int Progress = -1;
+        private int Progress = -2;
+        private SocketTextChannel channel = null;
         private List<IMessage> messages = new List<IMessage>();
 
         private DateTime date_time;
@@ -45,7 +46,30 @@ namespace VyavastaPlugin
 
             if (exec == this)
             {
-                if (Progress == 0)
+                if (Progress == -1)
+                {
+                    if (msg.Content.StartsWith("<#") && msg.Content.EndsWith(">"))
+                    {
+                        string id_str = msg.Content.Substring(2, msg.Content.Length - 3);
+                        ulong id = ulong.Parse(id_str);
+
+                        channel = guild.GetChannel(id) as SocketTextChannel;
+
+                        if (channel != null)
+                        {
+                            Progress += 1;
+                            await msg.Channel.SendOk("Enter a valid date and time in dd/mm/yyyy hh:mm PM/AM form");
+                        }
+                        else
+                        {
+                            await msg.Channel.SendError("Channel either couldn't be found or was a voice channel!");
+                            await msg.Channel.SendOk("Enter channel to send the announcement in");
+                        }
+                    }
+                }
+
+
+                else if (Progress == 0)
                 {
                     DateTime date_time;
                     if (DateTime.TryParseExact(msg.Content, new string[] { "d/M/yyyy H:m", "d/M/yyyy h:m tt", "d/M/yyyy h tt", "d/M/yyyy H" }, CultureInfo.InvariantCulture, DateTimeStyles.None, out date_time))
@@ -79,8 +103,6 @@ namespace VyavastaPlugin
                     Motion = msg.Content.Trim();
                     Progress += 1;
                     messages.Add(msg);
-
-                    var channel = guild.GetChannel(Clubby.Program.config.DiscordChannels["VyavastaAnnouncements"]) as SocketTextChannel;
 
                     if (channel != null)
                     {
@@ -124,7 +146,7 @@ namespace VyavastaPlugin
             }
             else if (exec == null)
             {
-                messages.Add(await msg.Channel.SendMessageAsync("Enter a valid date and time in dd/mm/yyyy hh:mm PM/AM form"));
+                messages.Add(await msg.Channel.SendMessageAsync("Enter a valid channel mention: "));
                 Progress += 1;
                 commandHandler.SetExecutingCommand(msg.Author.Id, this);
             }

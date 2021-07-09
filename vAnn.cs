@@ -31,36 +31,63 @@ namespace VyavastaPlugin
             return DiscordCommandPermission.Admin;
         }
 
+        private int Progress = -1;
+        private SocketTextChannel channel = null;
+
         public async Task Handle(SocketMessage msg, SocketGuild guild, CommandHandler commandHandler)
         {
             var exec = commandHandler.GetExecutingCommand(msg.Author.Id);
             if (exec == this)
             {
-                SocketTextChannel channel = guild.GetChannel(Clubby.Program.config.DiscordChannels["VyavastaAnnouncements"]) as SocketTextChannel;
-
-                if (channel != null)
+                if (Progress == 0)
                 {
-                    string content = null;
-                    if(msg.Attachments.Count > 0){
-                        content = msg.Attachments.First().Url;
+                    if (msg.Content.StartsWith("<#") && msg.Content.EndsWith(">"))
+                    {
+                        string id_str = msg.Content.Substring(2, msg.Content.Length - 3);
+                        ulong id = ulong.Parse(id_str);
+
+                        channel = guild.GetChannel(id) as SocketTextChannel;
+
+                        if (channel != null)
+                        {
+                            Progress += 1;
+                            await msg.Channel.SendOk("Enter announcement to send");
+                        }
+                        else
+                        {
+                            await msg.Channel.SendError("Channel either couldn't be found or was a voice channel!");
+                            await msg.Channel.SendOk("Enter channel to send the announcement in");
+                        }
                     }
-
-                    var ann = await channel.SendMessageAsync(null, false, new EmbedBuilder()
-                        .WithTitle($"Announcement")
-                        .WithImageUrl(content)
-                        .WithColor(Color.Blue)
-                        .WithDescription(msg.Content)
-                        .Build());
-
-                    await msg.Channel.SendOk("Announcement sent!");
                 }
-                else throw new Exception("Annoucement channel is not set!");
+                else if (Progress == 1)
+                {
+                    if (channel != null)
+                    {
+                        string content = null;
+                        if (msg.Attachments.Count > 0)
+                        {
+                            content = msg.Attachments.First().Url;
+                        }
 
-                commandHandler.SetExecutingCommand(msg.Author.Id, null);
+                        var ann = await channel.SendMessageAsync(null, false, new EmbedBuilder()
+                            .WithTitle($"Announcement")
+                            .WithImageUrl(content)
+                            .WithColor(Color.Blue)
+                            .WithDescription(msg.Content)
+                            .Build());
+
+                        await msg.Channel.SendOk("Announcement sent!");
+                    }
+                    else throw new Exception("Annoucement channel is not set!");
+
+                    commandHandler.SetExecutingCommand(msg.Author.Id, null);
+                }
             }
             else if (exec == null)
             {
-                await msg.Channel.SendOk("Enter the announcement to send");
+                await msg.Channel.SendOk("Enter channel to send the announcement in");
+                this.Progress += 1;
                 commandHandler.SetExecutingCommand(msg.Author.Id, this);
             }
         }

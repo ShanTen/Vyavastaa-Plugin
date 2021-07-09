@@ -28,7 +28,7 @@ namespace VyavastaPlugin
 
         public static void AddSchool(string schoolName, string code)
         {
-            globalVyavastaConfig.schoolLookup.Add(schoolName, code);
+            globalVyavastaConfig.schoolLookup.Add(schoolName.ToLower(), code);
             globalVyavastaConfig.Save();
         }
 
@@ -64,10 +64,10 @@ namespace VyavastaPlugin
                         return EventResult.Stop;
                     }
 
-                    if (globalVyavastaConfig.schoolLookup.ContainsKey(commArr[1]))
+                    if (globalVyavastaConfig.schoolLookup.ContainsKey(commArr[1].ToLower()))
                     {
                         ParticipantName = commArr[0];
-                        schoolName = commArr[1];
+                        schoolName = commArr[1].ToLower();
 
                         (message.Author as SocketGuildUser).ModifyAsync(m => m.Nickname = $"[{globalVyavastaConfig.schoolLookup[schoolName]}] {ParticipantName}").Wait();
 
@@ -78,7 +78,34 @@ namespace VyavastaPlugin
                         return EventResult.Stop;
 
                     }
-                    else message.Channel.SendError("School Name is invalid, NOTE: We couldn't teach the bot about cases (yet)\nEnter the **exact** school name").Wait();
+                    else 
+                    {
+                        var schoolNames = globalVyavastaConfig.schoolLookup.Keys.ToList();
+                        string bestMatch = schoolNames.GetBestMatch(commArr[1].ToLower());
+
+                        if(bestMatch == null) 
+                        {
+                            message.Channel.SendError("School Name is invalid, NOTE: We couldn't teach the bot about cases (yet)\nEnter the **exact** school name").Wait();
+                        }
+
+                        else
+                        {
+                            ParticipantName = commArr[0];
+                            schoolName = bestMatch;
+                            (message.Author as SocketGuildUser).ModifyAsync(m => m.Nickname = $"[{globalVyavastaConfig.schoolLookup[schoolName]}] {ParticipantName}").Wait();
+
+                            var role = houseOut == House.UpperHouse ? (message.Channel as SocketGuildChannel).Guild.Roles.FirstOrDefault(r => r.Name == "Participants [UH]") : (message.Channel as SocketGuildChannel).Guild.Roles.FirstOrDefault(r => r.Name == "Participants [LH]");
+
+                            (message.Author as SocketGuildUser).AddRoleAsync(role);
+
+                            return EventResult.Stop;
+                        }
+
+
+
+                        //message.Channel.SendError("School Name is invalid, NOTE: We couldn't teach the bot about cases (yet)\nEnter the **exact** school name").Wait();
+                    } 
+                    
                 }
                 else message.Channel.SendError("Enter a valid format\nExample: `Rakesh Sharma - The Psbb Millennium School - Upper House`").Wait();
                 
